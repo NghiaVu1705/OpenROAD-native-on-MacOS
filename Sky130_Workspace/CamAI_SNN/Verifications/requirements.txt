@@ -1,0 +1,8 @@
+cocotb>=1.9.0
+cocotb-bus>=0.2.1
+pyuvm>=3.0.0
+pytest>=7.0.0
+pytest-cocotb>=0.2.0
+cocotb-coverage>=1.1.0
+numpy>=1.24.0
+matplotlib>=3.7.0

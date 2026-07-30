@@ -1,0 +1,59 @@
+# ─── Build artifacts & object files ─────────────────────────────────────────
+*.o
+*.a
+*.so
+*.dylib
+*.dSYM/
+*.pyc
+__pycache__/
+*.egg-info/
+.DS_Store
+*.bak
+*.swp
+*~
+
+# ─── ORFS full tree (clone upstream separately — too large for GitHub) ──────
+# Users: git clone --recursive https://github.com/The-OpenROAD-Project/OpenROAD-flow-scripts.git ORFS_Source
+ORFS_Source/
+
+# ─── Prebuilt tool installs (machine-specific binaries) ─────────────────────
+tools/install/
+magic/
+netgen/
+open_pdks/
+
+# ─── Flow outputs ───────────────────────────────────────────────────────────
+**/results/
+**/logs/
+**/reports/
+**/objects/
+**/sim_build/
+**/*.vcd
+**/*.fst
+**/*.vvp
+**/*.spice
+**/*.ext
+**/*.log
+
+# ─── Workspace local noise ──────────────────────────────────────────────────
+Sky130_Workspace/**/logs/
+Sky130_Workspace/**/sim_build/
+Sky130_Workspace/**/__pycache__/
+Sky130_Workspace/GCD_signoff/
+ASAP7_Workspace/**/logs/
+ASAP7_Workspace/**/sim_build/
+
+# ─── Python / cocotb ────────────────────────────────────────────────────────
+.pytest_cache/
+results.xml
+**/waves/
+
+# ─── IDE ────────────────────────────────────────────────────────────────────
+.idea/
+.vscode/
+*.code-workspace
+
+# ─── Secrets / local overrides ──────────────────────────────────────────────
+.env
+*.pem
+openroad.cfg.local

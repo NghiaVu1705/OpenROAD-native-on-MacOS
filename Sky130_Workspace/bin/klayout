@@ -1,0 +1,88 @@
+#!/usr/bin/env python3.9
+"""
+klayout — CLI wrapper emulating KLayout binary for ORFS.
+Supports:  klayout -zz -rd <key>=<val> ... -r <script.py>
+           klayout -zz -rd <key>=<val> ... -r <script.drc>
+Uses klayout.db Python API directly (ARM64 native, no binary required).
+"""
+
+import sys
+import os
+import re
+
+def parse_args(argv):
+    """Return (rd_vars: dict, script: str, remaining: list)."""
+    rd_vars = {}
+    script = None
+    i = 1
+    while i < len(argv):
+        arg = argv[i]
+        if arg in ("-zz", "-z", "-noconsole", "-nowindow", "-nographics"):
+            i += 1
+        elif arg == "-rd":
+            i += 1
+            if i < len(argv):
+                pair = argv[i]
+                if "=" in pair:
+                    k, v = pair.split("=", 1)
+                    rd_vars[k.strip()] = v.strip()
+            i += 1
+        elif arg == "-r":
+            i += 1
+            if i < len(argv):
+                script = argv[i]
+            i += 1
+        elif arg.startswith("-r"):
+            script = arg[2:]
+            i += 1
+        else:
+            i += 1
+    return rd_vars, script
+
+def run_drc_script(script_path, rd_vars):
+    """Execute a KLayout DRC/Python script with rd_vars injected as globals."""
+    import klayout.db as pya
+    # Make rd vars accessible as module-level names inside the script
+    globs = {"pya": pya, "__file__": script_path}
+    globs.update(rd_vars)
+
+    script_dir = os.path.dirname(os.path.abspath(script_path))
+    if script_dir not in sys.path:
+        sys.path.insert(0, script_dir)
+
+    with open(script_path, "r") as f:
+        src = f.read()
+
+    try:
+        exec(compile(src, script_path, "exec"), globs)
+    except SystemExit as e:
+        sys.exit(e.code)
+    except Exception as e:
+        print(f"[klayout-wrapper] Script error: {e}", file=sys.stderr)
+        sys.exit(1)
+
+def main():
+    if len(sys.argv) < 2:
+        print("Usage: klayout -zz [-rd key=val ...] -r <script>")
+        sys.exit(0)
+
+    rd_vars, script = parse_args(sys.argv)
+
+    if script is None:
+        # Nothing to do (e.g. version check)
+        try:
+            import klayout.db as pya
+            print(f"KLayout {pya.__version__} (Python API wrapper)")
+        except ImportError:
+            print("klayout Python API not found", file=sys.stderr)
+            sys.exit(1)
+        sys.exit(0)
+
+    if not os.path.isfile(script):
+        print(f"[klayout-wrapper] Script not found: {script}", file=sys.stderr)
+        sys.exit(1)
+
+    run_drc_script(script, rd_vars)
+
+if __name__ == "__main__":
+    main()

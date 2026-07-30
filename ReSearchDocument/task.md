@@ -1,0 +1,50 @@
+# OpenROAD Installation on macOS M1
+
+- [x] 1. Prepare Environment
+  - [x] Install Xcode Command Line Tools
+  - [x] Install required dependencies via Homebrew (`tcl-tk@8`, `qt@5`, `zstd`, `icu4c`, `yaml-cpp`, `bison`, `flex`, `or-tools`)
+  - [x] Install `swig@4.2` specifically and pin dependencies
+  - [x] Configure `~/.zshrc` with required Environment Variables
+- [x] 2. Clone and Patch OpenROAD-flow-scripts (ORFS)
+  - [x] Clone ORFS to `OpenROAD-flow-scripts-source`
+  - [x] Patch [tools/OpenROAD/cmake/FindTCL.cmake](file:///Users/vuhieunghia/Documents/OpenROAD/ORFS_Source/tools/OpenROAD/cmake/FindTCL.cmake) for Homebrew tcl-tk path
+  - [x] Patch [tools/OpenROAD/src/CMakeLists.txt](file:///Users/vuhieunghia/Documents/OpenROAD/ORFS_Source/tools/OpenROAD/src/CMakeLists.txt) for zstd, icu4c, yaml-cpp linking
+  - [x] Patch [tools/OpenROAD/src/dst/CMakeLists.txt](file:///Users/vuhieunghia/Documents/OpenROAD/ORFS_Source/tools/OpenROAD/src/dst/CMakeLists.txt) to remove `Boost::system`
+- [x] 3. Build OpenROAD
+  - [x] Fix OpenMP (4 files), CUDD (build from source), FLEX_INCLUDE_DIRS, libomp global include
+  - [x] Build `openroad` binary: `cmake --build ... --target openroad`
+  - [x] `openroad` version: `26Q1-1961-g63ed2e0fe5` tại `tools/install/OpenROAD/bin/openroad` (68MB)
+  - [x] Build `yosys` binary: `Yosys 0.63` tại `tools/install/yosys/bin/yosys` (20MB)
+- [x] 4. Setup Workspaces for Sky130 and ASAP7
+  - [x] Create `Sky130_Workspace/run_gcd.sh`
+  - [x] Create `ASAP7_Workspace/run_gcd.sh`
+- [x] 5. Verification
+  - [x] Run sample GCD design on Sky130 Workspace ✅
+    - Output: `6_final.odb`, `6_final.def`, `6_final.v`, `6_final.spef` (2.6MB)
+    - WNS: -1.80ns | TNS: -81.25ps | Power: 9.30e-04W
+    - Note: EQUIVALENCE_CHECK=0, cần GNU coreutils trong PATH
+  - [x] Run sample GCD design on ASAP7 Workspace ✅
+    - Output: `6_final.odb`, `6_final.def`, `6_final.v`, `6_final.spef` (1.3MB)
+    - WNS: -23.53ns | TNS: -134.60ps | Power: 1.41e-04W
+  - [x] Install Verilator 5.046 + Icarus Verilog 13.0 via Homebrew
+  - [x] Install cocotb 2.0.1 + pyuvm 4.0.1 for Python 3.9
+  - [x] Create 3 sample projects: CamAI_SNN, Bio_health, HammingCode_128bit (Sky130 + ASAP7)
+  - [x] Create full UVM Verifications structure for all 6 projects (3×2):
+    - Makefile (cocotb, SIM=icarus/verilator)
+    - tb/interfaces, tb/env/agent (driver+monitor), tb/env/scoreboard, tb/env/coverage, tb/env/env.py
+    - tb/sequences, tb/tests (4 cocotb tests), sim/icarus, sim/verilator, waves/, reports/
+- [x] 6. Sign-off Tools (Tape-out Flow)
+  - [x] KLayout 0.30.7 – Python API ARM64 (pip install) + GDS DRC/LVS scripting
+    - `python3 -c "import klayout; print(klayout.__version__)"` → 0.30.7
+  - [x] Magic VLSI 8.3.625 – DRC + extraction
+    - Source: `magic/` (built from github.com/RTimothyEdwards/magic)
+    - Binary: `tools/install/magic/bin/magic`
+    - Patches: `defs.mak` SED→GNU sed, `GR_LIBS` cairo/fontconfig/freetype paths
+    - Tech: `sky130A.tech` installed from open_pdks/sky130/magic/
+  - [x] Netgen 1.5.316 – LVS netlist comparison
+    - Source: `netgen/` (built from github.com/RTimothyEdwards/netgen)
+    - Binary: `tools/install/netgen/bin/netgen`
+    - Patch: `CFLAGS=-Wno-error=implicit-function-declaration`
+  - [x] open_pdks – Sky130A tech files cloned to `open_pdks/`
+    - sky130A.tech + sky130A.magicrc installed to Magic sys dir
+  - [ ] Tape-out flow: OpenROAD GDS → Magic DRC → Netgen LVS → submit Efabless
