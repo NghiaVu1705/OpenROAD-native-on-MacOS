@@ -164,7 +164,7 @@ echo "  Tìm thấy: ${#FOUND[@]} tools | Thiếu: ${#MISSING[@]} tools"
 
 if [[ ${#MISSING[@]} -gt 0 ]]; then
     warn "Công cụ còn thiếu: ${MISSING[*]}"
-    warn "Xem ReSearchDocument/huong_dan_setup_va_chay_HammingCode_128bit.md để biết cách cài"
+    warn "Xem docs/HUONG_DAN_DAY_DU.md hoặc docs/QUICKSTART.md để biết cách cài"
 fi
 
 # ─── STEP 3: Ghi openroad.cfg ─────────────────────────────────────────────────

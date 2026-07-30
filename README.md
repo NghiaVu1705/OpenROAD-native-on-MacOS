@@ -1,257 +1,118 @@
 # OpenROAD Native on macOS (Apple Silicon)
 
-[![Platform](https://img.shields.io/badge/platform-macOS%20Apple%20Silicon-black)](.)
-[![Flow](https://img.shields.io/badge/flow-RTL%20%E2%86%92%20GDSII-blue)](.)
-[![PDK](https://img.shields.io/badge/PDK-Sky130%20%7C%20ASAP7-green)](.)
+[![Platform](https://img.shields.io/badge/platform-macOS%20Apple%20Silicon-black)](https://github.com/NghiaVu1705/OpenROAD-native-on-MacOS)
+[![Flow](https://img.shields.io/badge/flow-RTL%20→%20GDSII-blue)](docs/HUONG_DAN_DAY_DU.md)
+[![PDK](https://img.shields.io/badge/PDK-Sky130%20%7C%20ASAP7-green)](docs/HUONG_DAN_DAY_DU.md)
+[![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
 
-**Open-source digital ASIC lab kit** for running [OpenROAD](https://github.com/The-OpenROAD-Project/OpenROAD) **natively** on MacBooks with Apple Silicon (M1/M2/M3/M4) — without Docker/Rosetta for the main flow.
-
-> **What you get:** portable workspaces, sample RTL designs, cocotb verification, RTL→GDS scripts, sign-off helpers (Magic DRC / Netgen LVS), and a full Vietnamese+English research guide for building ORFS on macOS ARM64.
-
-**Author / maintainer context:** research & teaching setup for OpenROAD on Apple Silicon.
+Lab kit chạy **[OpenROAD](https://github.com/The-OpenROAD-Project/OpenROAD) native** trên Mac **M1/M2/M3/M4** (không cần Docker cho luồng chính): RTL → place & route → GDS, kèm design mẫu và tài liệu tiếng Việt.
 
 ---
 
-## Why this repo?
+## Bắt đầu từ đây (chọn 1)
 
-| Problem | This project |
-|---------|----------------|
-| OpenROAD is Linux/Docker-first | Documented **native ARM64** build path |
-| “Just clone ORFS” is painful on Mac | **14 known build issues + fixes** (see docs) |
-| Only GCD demo | **3 real designs** + verification harness |
-| P&R without sign-off | Scripts toward **GDS + Magic DRC** |
-
-**Not a replacement** for commercial EDA or a production foundry tape-out kit.  
-**Is** a reproducible lab for learning and research on Mac.
+| Bạn là… | Đọc file |
+|---------|----------|
+| **Muốn làm theo từ A→Z (tiếng Việt)** | **[docs/HUONG_DAN_DAY_DU.md](docs/HUONG_DAN_DAY_DU.md)** ← **đầy đủ nhất** |
+| Chỉ cần checklist 1 trang | [docs/QUICKSTART.md](docs/QUICKSTART.md) |
+| Muốn hiểu patch build / benchmark M1 | [ReSearchDocument/README.md](ReSearchDocument/README.md) |
+| English summary | Sections below |
 
 ---
 
-## Repository layout
-
-```text
-OpenROAD-native-on-MacOS/
-├── README.md                 ← you are here
-├── setup.sh                  ← one-time PATH / tool check after tools exist
-├── openroad.cfg
-├── Sky130_Workspace/         ← SkyWater 130nm designs + run scripts
-│   ├── run.sh
-│   ├── HammingCode_128bit/   ← SEC-DED Hamming (RTL→GDS path mature)
-│   ├── CamAI_SNN/            ← LIF spiking neural net (config ready)
-│   └── Bio_health/           ← ECG/PPG-style biosignal (config ready)
-├── ASAP7_Workspace/          ← same designs for ASAP7 (academic 7nm)
-└── ReSearchDocument/         ← full setup guide + benchmarks (macOS M1)
-```
-
-**Not vendored here** (too large / machine-specific — install yourself):
-
-- `ORFS_Source/` — OpenROAD-flow-scripts + OpenROAD + Yosys  
-- `magic/`, `netgen/`, `open_pdks/`, `tools/install/` — sign-off builds  
-
-See [ReSearchDocument/README.md](ReSearchDocument/README.md) for the complete native install guide.
-
----
-
-## Quick start (after tools are built)
-
-### 1. Prerequisites
-
-- **macOS** on **Apple Silicon** (`uname -m` → `arm64`)
-- Xcode Command Line Tools, Homebrew
-- Built **ORFS** under `ORFS_Source/` (or symlink your build there)
-- Optional: Magic, Netgen, open_pdks for DRC/LVS
-
-Homebrew packages commonly required at **runtime**:
+## Cài nhanh (tóm tắt)
 
 ```bash
-brew install \
-  tcl-tk@8 or-tools protobuf re2 highs scip \
-  libomp qt@5 yaml-cpp spdlog fmt \
-  coreutils gnu-sed icarus-verilog verilator
-
-# Python 3.9 (Xcode CLT) packages for verify + GDS
-/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/bin/python3.9 \
-  -m pip install --user klayout cocotb cocotb-bus pyuvm pyyaml
-```
-
-Pin Homebrew library majors when possible — OpenROAD links **dynamically**; a `brew upgrade` can break binaries until rebuild.
-
-### 2. Clone this lab kit
-
-```bash
+# 1) Clone
 git clone https://github.com/NghiaVu1705/OpenROAD-native-on-MacOS.git
 cd OpenROAD-native-on-MacOS
-```
 
-### 3. Place or build ORFS
+# 2) Deps + clone OpenROAD-flow-scripts
+chmod +x scripts/*.sh setup.sh
+./scripts/bootstrap_macos.sh
 
-```bash
-# Example: recursive clone beside this repo layout
-git clone --recursive \
-  https://github.com/The-OpenROAD-Project/OpenROAD-flow-scripts.git \
-  ORFS_Source
-
+# 3) Build OpenROAD + Yosys (30–90 phút)
 cd ORFS_Source
-./build_openroad.sh --local   # long; see ReSearchDocument for M1 patches
-```
+export OpenMP_ROOT=$(brew --prefix libomp)
+export LDFLAGS="-L$(brew --prefix libomp)/lib"
+export CPPFLAGS="-I$(brew --prefix libomp)/include -Xpreprocessor -fopenmp"
+./build_openroad.sh --local
+cd ..
 
-Expected binaries:
+# 4) PDK sky130hd (lib / lef / rcx / gds)
+./scripts/prepare_sky130hd_platform.sh
 
-```text
-ORFS_Source/tools/install/OpenROAD/bin/openroad
-ORFS_Source/tools/install/yosys/bin/yosys
-```
-
-Sky130 platform may need liberty/LEF/GDS/RCX files under  
-`ORFS_Source/flow/platforms/sky130hd/` (from OpenROAD tests / PDK — see research doc).
-
-### 4. Environment + health check
-
-```bash
-chmod +x setup.sh Sky130_Workspace/run.sh ASAP7_Workspace/run.sh \
-  Sky130_Workspace/HammingCode_128bit/*.sh 2>/dev/null
-
-./setup.sh
-source ~/.zprofile
+# 5) PATH
+./setup.sh && source ~/.zprofile
 source Sky130_Workspace/HammingCode_128bit/env_setup.sh
+
+# 6) Chạy design mẫu
+cd Sky130_Workspace && ./run.sh HammingCode_128bit
+
+# 7) GDS
+cd HammingCode_128bit && python3.9 ./run_def2gds.py
 ```
 
-`OPENROAD_HOME` must point at **this** repo root (e.g. `.../OpenROAD-native-on-MacOS`).
+**Yêu cầu:** `uname -m` → `arm64` · macOS 13+ · ~25 GB trống · lần đầu **không** xong trong 5 phút (phải build tool).
 
-### 5. Run RTL → GDS (Hamming, recommended first design)
+---
 
-**Step-by-step (ORFS):**
+## Repo có gì / không có gì
+
+| Có trên GitHub | Bạn tự cài / build |
+|----------------|-------------------|
+| Workspace 3 design (Sky130 + ASAP7) | `ORFS_Source/` (OpenROAD + Yosys) |
+| Script chạy flow, GDS, cocotb | Binary `openroad`, `yosys` |
+| `bootstrap_macos.sh`, `prepare_sky130hd_platform.sh` | (Tuỳ chọn) Magic / Netgen DRC·LVS |
+| Hướng dẫn VI đầy đủ | |
+
+Không push full prebuilt (~GB) vì giới hạn GitHub và binary gắn máy.
+
+---
+
+## Design mẫu
+
+| Design | Mô tả |
+|--------|--------|
+| **HammingCode_128bit** | SEC-DED Hamming — demo chính RTL→GDS |
+| **CamAI_SNN** | Mạng nơ-ron xung LIF nhỏ |
+| **Bio_health** | Pipeline xử lý tín hiệu sinh học đơn giản |
+
+---
+
+## Xem layout
 
 ```bash
 source Sky130_Workspace/HammingCode_128bit/env_setup.sh
-cd ORFS_Source/flow
-export DESIGN_CONFIG=$PWD/../../Sky130_Workspace/HammingCode_128bit/config.mk
-
-make DESIGN_CONFIG=$DESIGN_CONFIG EQUIVALENCE_CHECK=0 LEC_CHECK=0 synth
-make DESIGN_CONFIG=$DESIGN_CONFIG EQUIVALENCE_CHECK=0 LEC_CHECK=0 floorplan
-make DESIGN_CONFIG=$DESIGN_CONFIG EQUIVALENCE_CHECK=0 LEC_CHECK=0 place
-make DESIGN_CONFIG=$DESIGN_CONFIG EQUIVALENCE_CHECK=0 LEC_CHECK=0 cts
-make DESIGN_CONFIG=$DESIGN_CONFIG EQUIVALENCE_CHECK=0 LEC_CHECK=0 route
-make DESIGN_CONFIG=$DESIGN_CONFIG EQUIVALENCE_CHECK=0 LEC_CHECK=0 do-6_report
-```
-
-**GDS (KLayout Python API, no GUI binary required):**
-
-```bash
-cd ../../Sky130_Workspace/HammingCode_128bit
-python3.9 ./run_def2gds.py
-```
-
-**One-shot script** (when tools + PDK files are complete):
-
-```bash
-cd Sky130_Workspace/HammingCode_128bit
-./run_flow_complete.sh --from 3
-```
-
-**Outputs:**
-
-```text
-ORFS_Source/flow/results/sky130hd/HammingCode_128bit/base/6_final.def
-ORFS_Source/flow/results/sky130hd/HammingCode_128bit/base/6_final.gds
-```
-
-**View layout:**
-
-```bash
 openroad -gui -db ORFS_Source/flow/results/sky130hd/HammingCode_128bit/base/6_final.odb
-# or open reports/*.webp
-```
-
-### 6. Functional verification only
-
-```bash
-cd Sky130_Workspace/HammingCode_128bit/Verifications
-make SIM=icarus
 ```
 
 ---
 
-## Sample designs
+## English overview
 
-| Design | Description | Sky130 | ASAP7 |
-|--------|-------------|--------|-------|
-| **HammingCode_128bit** | SEC-DED Hamming(137,128), ~100 MHz target | Primary demo | Config |
-| **CamAI_SNN** | Small LIF SNN accelerator | Config | Config |
-| **Bio_health** | Simple biosignal processing pipeline | Config | Config |
+This repository is a **portable OpenROAD lab** for **Apple Silicon Macs**: sample RTL, cocotb tests, run scripts, and docs to build **OpenROAD-flow-scripts natively** (not Docker-first).
 
-Example **measured** Hamming on Sky130 (native Apple Silicon lab run): area ~21k µm² @ ~76% util, **WNS/TNS = 0** @ 10 ns clock, GDS ~2 MB.  
-Your numbers will vary with ORFS/OpenROAD version and PDK files.
+1. Run `./scripts/bootstrap_macos.sh`  
+2. Build with `./build_openroad.sh --local` inside `ORFS_Source`  
+3. Run `./scripts/prepare_sky130hd_platform.sh`  
+4. `./setup.sh` + `source Sky130_Workspace/HammingCode_128bit/env_setup.sh`  
+5. `./Sky130_Workspace/run.sh HammingCode_128bit` then `python3.9 run_def2gds.py`  
 
----
-
-## Performance notes (native M1)
-
-From research appendix (GCD-class design):
-
-- Full GCD P&R on the order of **~1–2 minutes** wall time  
-- Routing dominates (~70%+)  
-- Native ARM often **~2–3× faster** than Docker x86 under Rosetta  
-- Still typically slower on detail route than high-core Linux desktops  
-
-See **Phụ lục A–C** in [ReSearchDocument/README.md](ReSearchDocument/README.md).
+Full Vietnamese walkthrough: **[docs/HUONG_DAN_DAY_DU.md](docs/HUONG_DAN_DAY_DU.md)**.
 
 ---
 
-## Documentation
+## License & upstream
 
-| Doc | Content |
-|-----|---------|
-| [ReSearchDocument/README.md](ReSearchDocument/README.md) | Full Vietnamese guide: install, P&R stages, verify, DRC/LVS, new design |
-| [ReSearchDocument/task.md](ReSearchDocument/task.md) | Checklist / status notes |
-| Design `Docs/` under each workspace | Algorithm / task notes per chip |
+- Lab scripts & docs: [Apache-2.0](LICENSE)  
+- OpenROAD, Yosys, Magic, Netgen, PDKs: their own licenses  
 
----
-
-## Troubleshooting (short)
-
-| Symptom | Fix |
-|---------|-----|
-| `OPENROAD_HOME` is `$HOME` under zsh | Use updated `env_setup.sh` (zsh-safe `%x`) |
-| `Library not loaded` / exit 137 | Reinstall brew deps matching link versions; rebuild OpenROAD |
-| Missing `1_synth.v` | Newer ORFS uses `1_2_yosys.v` / `1_synth.odb` |
-| Missing `rcx_patterns.rules` | Copy from OpenROAD `test/sky130hd/sky130hd.rcx_rules` |
-| `KLayout not found` in make | Use `python3.9 run_def2gds.py` + `KLAYOUT_CMD=klayout` wrapper |
-| `realpath` / `sed` errors | GNU coreutils + gnu-sed **before** BSD tools in `PATH` |
-
----
-
-## Upstream projects
-
-- [OpenROAD](https://github.com/The-OpenROAD-Project/OpenROAD)  
-- [OpenROAD-flow-scripts](https://github.com/The-OpenROAD-Project/OpenROAD-flow-scripts)  
-- [Magic VLSI](https://github.com/RTimothyEdwards/magic)  
-- [Netgen](https://github.com/RTimothyEdwards/netgen)  
-- [open_pdks](https://github.com/RTimothyEdwards/open_pdks)  
-- SkyWater SKY130 / ASAP7 PDKs  
-
-Respect their licenses when redistributing binaries or PDK data.
+**Disclaimer:** Educational / research use. Not a guarantee of foundry tape-out readiness.
 
 ---
 
 ## Contributing
 
-Issues and PRs welcome for:
-
-- macOS ARM build patches that stay compatible with current ORFS  
-- Extra design configs / CI smoke tests  
-- Doc fixes (EN/VI)
-
-Please **do not** commit multi‑GB `ORFS_Source/tools` trees or machine-specific `tools/install` binaries in PRs.
-
----
-
-## License
-
-Lab scripts and documentation in this repository: see [LICENSE](LICENSE) (Apache-2.0).  
-OpenROAD, Yosys, Magic, Netgen, and PDKs remain under **their own** licenses.
-
----
-
-## Disclaimer
-
-Educational / research use. No warranty that results are tape-out ready for any foundry shuttle. Always re-validate timing, DRC, LVS, and PDK versions for your target process.
+Issues/PRs welcome (macOS ARM build tips, doc fixes, new small designs).  
+Please do **not** commit multi‑GB `ORFS_Source/tools` trees or machine-local install binaries.
